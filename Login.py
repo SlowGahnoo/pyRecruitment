@@ -14,6 +14,7 @@ class Login(QWidget):
         super().__init__()
         self.usrname = QLineEdit()
         self.passwd = QLineEdit()
+        self.passwd.setEchoMode(QLineEdit.Password)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(QLabel("<b>Login Screen</b>", alignment=QtCore.Qt.AlignCenter))
