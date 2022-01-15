@@ -13,6 +13,16 @@ class Request:
     desired_wage:     int  = 0
     job_type:         str  = None
 
+@dataclass 
+class Login:
+    _id:     int = 0
+    email:   str = None
+    usrname: str = None
+    passwd:  str = None
+
+    def __iter__(self):
+        return iter((self._id, self.email, self.usrname, self.passwd))
+
 @dataclass
 class Candidate:
     _id:          int  = 0
@@ -21,10 +31,13 @@ class Candidate:
     sex:          str  = None
     email:        str  = None
     birthday:     date = None 
-    phone:        str  = None
-    mobile_phone: str  = None
+    phone_num:    str  = None
     street:       str  = None
     street_num:   int  = 0
+    zipcode:      str  = None
+
+    def __iter__(self):
+        return iter((self._id, self.name, self.surname, self.sex, self.email, self.birthday, self.phone_num, self.street, self.street_num))
 
 @dataclass
 class Job:
@@ -35,13 +48,6 @@ class Job:
     submission_deadline: date = None
     salary:              int  = 0
     
-
-class Tables(Enum):
-    CANDIDATE = "CANDIDATE",
-    REQUEST   = "REQUEST",
-    EMPLOYER  = "EMPLOYER",
-    COMPANY   = "COMPANY",
-
 class DBManagement:
     def __init__(self, database: str):
         self.con = sqlite3.connect(os.path.join(dirname, database))
@@ -50,6 +56,16 @@ class DBManagement:
 
     def initializeData(self):
         raise NotImplementedError
+    
+    def getUniversities(self):
+        uni = [str(institute[0]) for institute in self.cur.execute(
+        """ SELECT DISTINCT institute FROM UNIVERSITY ORDER BY institute; """).fetchall()]
+        return uni
+
+    def getDepartment(self, university: str):
+        dpt = [str(department[0]) for department in self.cur.execute(
+        """ SELECT name FROM UNIVERSITY WHERE institute=?""" , (university, )).fetchall()]
+        return dpt
 
     # Login credentials
     def loginCandidate(self):
@@ -58,9 +74,24 @@ class DBManagement:
     def loginEmployer(self):
         raise NotImplementedError
 
+    # User
+    def pushLogin(self, login: Login):
+        self.cur.execute("""
+            INSERT INTO LOGIN (id_user, email, username, password) VALUES (?, ?, ?, ?)
+        """, [*login])
+
     # Candidate
-    def pushCandidate(self):
-        raise NotImplementedError
+    def pushCandidate(self, c: Candidate):
+        self.cur.execute("""
+            INSERT INTO CANDIDATE (id, sex, birthday, zip_code, street, street_num)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, [c._id, c.sex, c.birthday, c.zipcode, c.street, c.street_num])
+
+        self.cur.execute("""
+            INSERT INTO USERS (id, name, surname, phone_num, email)
+            VALUES (?, ?, ?, ?, ?)
+        """, [c._id, c.name, c.surname, c.phone_num, c.email])
+
 
     def updateCandidate(self):
         raise NotImplementedError
@@ -88,9 +119,8 @@ class DBManagement:
     def deleteJob(self):
         raise NotImplementedError
 
-    def fetchAll(self, table: Enum):
-        """Fetch all rows from a table"""
-        return [row for row in self.con.execute("SELECT * FROM ?", (table, )).fetchall()]
+    def commit(self):
+        self.con.commit()
 
     def __str__(self):
         return "\n".join([i[1] for i in self.cur.execute(
@@ -98,6 +128,6 @@ class DBManagement:
 
 if __name__ == "__main__":
     dbman = DBManagement("test.db")
-    print(dbman)
-    # c = Request(application_date = datetime.now().strftime("%Y-%m-%d"))
+    print(dbman.lastid())
+    # print(dbman)
     # print(c)
