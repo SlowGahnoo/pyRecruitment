@@ -8,9 +8,69 @@ from util import *
 
 dbman = DBManagement("test.db")
 
-class Register(QWidget):
-    def __init__(self):
+class Details(QWidget):
+    def __init__(self, _id):
         super().__init__()
+        self.layout = QVBoxLayout()
+        self.field_dict = {}
+        self.candidate = dbman.fetchCandidate(_id)
+        field_names = [
+                "id",
+                "name", 
+                "surname", 
+                "sex", 
+                "birthday",
+                "email", 
+                "phone number", 
+                "street", 
+                "street number",
+                "zip code",
+        ]
+        print(self.candidate)
+        for name, field in zip(field_names, self.candidate):
+            print(name, field)
+            if name not in ["id", "email", "birthday"]:
+                middle = QHBoxLayout()
+                middle.addWidget(QLabel(f"{name}:"))
+                edit = QLineEdit()
+                self.field_dict[name] = edit
+                edit.setText(str(field))
+                middle.addWidget(edit)
+                self.layout.addLayout(middle)
+
+        self.layout.addStretch()
+
+        self.apply = QPushButton("Apply changes")
+        self.apply.clicked.connect(self.apply_changes)
+
+        self.cancel = QPushButton("Cancel")
+        self.cancel.clicked.connect(self.cancel_changes)
+
+        self.layout.addWidget(self.apply)
+        self.layout.addWidget(self.cancel)
+
+        self.setLayout(self.layout)
+
+    def apply_changes(self):
+        c = self.candidate 
+        c.name = self.field_dict["name"].text()
+        c.surname = self.field_dict["surname"].text()
+        c.sex = self.field_dict["sex"].text()
+        c.phone_num = self.field_dict["phone number"].text()
+        c.street = self.field_dict["street"].text()
+        c.street_num = self.field_dict["street number"].text()
+        c.zipcode = self.field_dict["zip code"].text()
+        dbman.updateCandidate(c)
+        dbman.commit()
+        self.hide()
+
+    def cancel_changes(self):
+        self.hide()
+
+class Register(QWidget):
+    def __init__(self, mainwindow):
+        super().__init__()
+        self.mainwindow = mainwindow
         self.layout = QVBoxLayout()
         self.layout.addWidget(QLabel("Username"))
         self.usrname = QLineEdit()
@@ -152,15 +212,15 @@ class Register(QWidget):
             self.warning.setText("")
 
     def register_user(self):
-        import random
 
-        usr_id = int("".join([str(ord(x)) for x in self.email.text()]))
+        usr_id = sum([ord(x) for x in self.email.text()])
 
         login = Login(
-                    _id = usr_id,
+                    _id     = usr_id,
                     usrname = self.name.text(), 
-                    passwd = self.passwd.text(), 
-                    email = self.email.text())
+                    passwd  = self.passwd.text(), 
+                    email   = self.email.text()
+        )
 
         candidate = Candidate(
                 _id         = usr_id,
@@ -172,21 +232,26 @@ class Register(QWidget):
                 street      = self.street.text(), 
                 street_num  = self.street_num.text(),
                 zipcode     = self.zipcode.text(),
-                email       = self.email.text())
+                email       = self.email.text()
+    )
 
         dbman.pushCandidate(candidate)
         dbman.pushLogin(login)
         dbman.commit()
-        print(login)
-        print(candidate)
+        self.usr_id = usr_id
+        self.mainwindow.switch_from_register()
+
+    def getID(self):
+        return self.usr_id
 
 class RightPanel(QWidget):
-    def __init__(self):
+    def __init__(self, _id):
         super().__init__()
+        self.usr_id = _id
         self.send = QPushButton("Send")
         self.clear = QPushButton("Clear")
         self.quit = QPushButton("Quit")
-        self.details = QPushButton("Details")
+        self.details = QPushButton("Edit Details")
         self.send.setEnabled(False)
 
         self.date = QDateTime.currentDateTime().toString("yyyy-MM-dd") 
@@ -221,6 +286,11 @@ class RightPanel(QWidget):
 
         # self.description.textChanged[str].connect(self.check_disable)
         self.salary.textChanged[str].connect(self.check_disable)
+        self.details.clicked.connect(self.show_details)
+
+    def show_details(self):
+        self.d = Details(self.usr_id)
+        self.d.show()
 
     def clicked_connect(self, _send, _quit, _clear):
         self.send.clicked.connect(_send)
@@ -245,7 +315,7 @@ class Widget(QWidget):
         self.list.customContextMenuRequested.connect(self.customContextMenuRequested)
         self.list.mouseReleaseEvent = self.listContext
         
-        self.right = RightPanel()
+        self.right = RightPanel(self.usr_id)
         self.right.clicked_connect(self.add_element, self.quit_application, self.clear_table)
         self.layout = QHBoxLayout(self)
 

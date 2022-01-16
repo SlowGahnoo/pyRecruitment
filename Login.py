@@ -1,6 +1,5 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtWidgets import *
-from pyRecruitment import *
 from util import *
 
 from DBManager import DBManagement
@@ -81,19 +80,28 @@ class Window(QMainWindow):
         self.resize(640, 480)
 
     def switch_register(self):
-        self.w = type_dict[self.w.getType()].Register()
+        self.type = self.w.getType()
+        self.w = type_dict[self.type].Register(self)
         self.setCentralWidget(self.w)
+
+    def switch_from_register(self):
+        _id = self.w.getID()
+        if _id:
+            self.w = type_dict[self.type].Widget(_id)
+            self.setCentralWidget(self.w)
 
     def switch_main(self):
         _id = self.w.login_user()
+        self.type = self.w.getType()
         if _id:
-            print(_id)
-            self.w = type_dict[self.w.getType()].Widget(_id)
+            self.w = type_dict[self.type].Widget(_id)
             self.setCentralWidget(self.w)
 
-if __name__ == "__main__":
+def main():
     app = QApplication([])
     window = Window()
     window.show()
     app.exec()
-        
+
+if __name__ == "__main__":
+    main()

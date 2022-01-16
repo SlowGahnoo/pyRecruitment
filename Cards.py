@@ -50,14 +50,18 @@ class RequestCard(CardWidget):
                 "<b><u>Remote:</b></u> {}",
                 "<b><u>Application date:</b></u> {}",
         ]
-        icon_path = "assets/r_person.png"
+        icon_path = "assets/r_paper.png"
         super().__init__(fields, data, icon_path)
 
 class JobCard(CardWidget):
     def __init__(self, data):
         fields = [
+                "<b><u>Domain</u></b>:\n{}",
                 "<b><u>Description</u></b>:\n{}",
                 "<b><u>Location</u></b>:\n{}",
+                "<b><u>Company name</u></b>:\n{}",
+                "<b><u>Remote</u></b>:\n{}",
+                "<b><u>Total workers:</u></b>:\n{}",
                 "<b><u>Salary</u></b>:\n{:.2f} € / month",
                 "<b><u>Submission Deadline</u></b>:\n{}"
                 # "<b><u></u></b>"

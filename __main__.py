@@ -1,5 +1,5 @@
 import sys
-import pyRecruitment
+import Login
 
 if __name__ == "__main__":
-    sys.exit(pyRecruitment.main())
+    sys.exit(Login.main())
