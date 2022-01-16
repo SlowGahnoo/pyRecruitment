@@ -116,44 +116,52 @@ class Register(QWidget):
 
 
 class RightPanel(QWidget):
-    def __init__(self):
+    def __init__(self, l_amount, r_amount):
         super().__init__()
-        self.description = QPlainTextEdit()
-        self.send = QPushButton("Send")
-        self.clear = QPushButton("Clear")
-        self.quit = QPushButton("Quit")
-        self.send.setEnabled(False)
 
-        self.location = QLineEdit()
-        self.total_workers = QLineEdit()
-
-        # Right
+        print(l_amount)
+        print(r_amount)
         self.layout = QVBoxLayout()
 
+        self.layout.addWidget(QLabel("Employer index"))
+        self.employer_index = QComboBox()
+        self.employer_index.addItems([str(i) for i in range(l_amount)])
+        self.layout.addWidget(self.employer_index)
+
+        self.layout.addWidget(QLabel("Candidate index"))
+        self.candidate_index = QComboBox()
+        self.candidate_index.addItems([str(i) for i in range(r_amount)])
+        self.layout.addWidget(self.candidate_index)
+
+        self.send = QPushButton("Send recommendation")
+        self.send.clicked.connect(self.match)
+        self.quit = QPushButton("Quit")
 
         self.layout.addWidget(self.send)
         self.layout.addStretch()
-        self.layout.addWidget(self.clear)
         self.layout.addWidget(self.quit)
-
         self.setLayout(self.layout)
 
-    def clicked_connect(self, _send, _quit, _clear):
-        self.send.clicked.connect(_send)
-        self.quit.clicked.connect(_quit)
-        self.clear.clicked.connect(_clear)
+    def connect_lists(self, list1, list2, list3):
+        self.jobs = list1
+        self.candidates = list2
+        self.requests = list3
 
-    @pyqtSlot()
-    def check_disable(self):
-        if not is_float(self.salary.text()):
-            self.send.setEnabled(False)
-        else:
-            self.send.setEnabled(True)
+    def match(self):
+        id_work_pos = self.jobs[self.employer_index.currentIndex()]._id
+        id_candidate = self.candidates[self.candidate_index.currentIndex()]._id
+        request = self.requests[self.candidate_index.currentIndex()]
+        dbman.matchCandidateJob(id_candidate, id_work_pos) 
+        dbman.deleteRequest(request)
+        dbman.commit()
 
 class ListPanel(QWidget):
     def __init__(self, _type, _id):
         super().__init__()
         self.items = 0
+        self.jobs = []
+        self.candidates = []
+        self.requests = []
         self.type = _type
         self.usr_id = _id
 
@@ -185,8 +193,8 @@ class ListPanel(QWidget):
             for id_employer in employers:
                 jobs = dbman.fetchJob(id_employer)
                 for i, j in enumerate(jobs):
+                    self.jobs.append(j)
                     a = QListWidgetItem()
-                    print(j)
                     card = JobCard([
                         j.domain,
                         j.description,
@@ -200,12 +208,17 @@ class ListPanel(QWidget):
                     a.setSizeHint(card.sizeHint())
                     self.list.addItem(a)
                     self.list.setItemWidget(a, card)
-                    self.items = i
+                    self.items += 1
 
         if self.type == "Request":
             requests = dbman.fetchOfficeRequests(self.usr_id)
             for i, r in enumerate(requests):
                 c = dbman.fetchCandidate(r._id)
+                if c.id_work_pos:
+                    continue
+
+                self.candidates.append(c)
+                self.requests.append(r)
 
                 card1 = CandidateCard([
                     c.name,
@@ -215,7 +228,7 @@ class ListPanel(QWidget):
                     "University"
                 ])
 
-                card2 = JobCard([
+                card2 = RequestCard([
                     float(r.desired_wage),
                     r.job_type,
                     bool(r.telework),
@@ -231,46 +244,35 @@ class ListPanel(QWidget):
                 b.setSizeHint(card2.sizeHint())
                 self.list.addItem(b)
                 self.list.setItemWidget(b, card2)
-                self.items = i
+                self.items += 1
 
+    def getTotal(self):
+        return self.items
 
-    def add_element(self):
-        a = QListWidgetItem()
-
-        card = JobCard([])
-        a.setSizeHint(card.sizeHint())
-        self.list.addItem(a)
-
-        self.list.setItemWidget(a, card)
-        self.right.description.setPlainText("")
-        self.right.salary.setText("")
-        self.right.location.setText("")
-
-        self.items += 1
 
 class Widget(QWidget):
     def __init__(self, usr_id):
         super().__init__()
         self.usr_id = usr_id
-
-        
-        # self.right.clicked_connect(self.add_element, self.quit_application, self.clear_table)
-
-        # self.fill_list()
         usr = dbman.fetchOfficeWorker(self.usr_id)
-        QLabel(f"Office worker - user {usr.name} {usr.surname}")
 
-        self.layout = QHBoxLayout(self)
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(QLabel(f"Office worker - user {usr.name} {usr.surname}"))
+
+        self.inner_layout = QHBoxLayout()
 
         self.left = ListPanel("Employer", self.usr_id)
         self.middle = ListPanel("Request", self.usr_id)
-        self.right = RightPanel()
+        self.right = RightPanel(self.left.getTotal(), self.middle.getTotal())
 
-        self.layout.addWidget(self.left)
-        self.layout.addWidget(self.middle)
-        self.layout.addWidget(self.right)
-
+        self.inner_layout.addWidget(self.left)
+        self.inner_layout.addWidget(self.middle)
+        self.inner_layout.addWidget(self.right)
+        self.layout.addLayout(self.inner_layout)
+        self.right.connect_lists(self.left.jobs, self.middle.candidates, self.middle.requests)
         self.setLayout(self.layout)
+
+        # self.right.clicked_connect(self.add_element, self.quit_application, self.clear_table)
 
 
 

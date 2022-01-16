@@ -49,6 +49,7 @@ class Candidate:
     street:       str  = None
     street_num:   int  = 0
     zipcode:      str  = None
+    id_work_pos:  int  = 0
 
     def __iter__(self):
         return iter((self._id, self.name, self.surname, self.sex, self.birthday, self.email, self.phone_num, self.street, self.street_num, self.zipcode))
@@ -192,6 +193,13 @@ class DBManagement:
             VALUES (?, ?, ?, ?, ?)
         """, [o._id, o.name, o.surname, o.phone_num, o.email])
 
+    def matchCandidateJob(self, id_candidate, id_job):
+        self.cur.execute("""
+            UPDATE CANDIDATE
+            SET id_work_pos=?
+            WHERE id=?
+        """, (id_job, id_candidate))
+
     def pushEmployer(self, e: Employer):
         self.cur.execute("""
             INSERT INTO EMPLOYER (id, id_company) 
@@ -256,8 +264,12 @@ class DBManagement:
     def updateRequest(self):
         raise NotImplementedError
 
-    def deleteRequest(self):
-        raise NotImplementedError
+    def deleteRequest(self, r: Request):
+        self.cur.execute("""
+            DELETE FROM REQUEST
+            WHERE id=?
+        """, (r._id, ))
+
 
     def fetchSpecialties(self):
         specialties = [s[0] for s in self.cur.execute("""
