@@ -1,7 +1,13 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtWidgets import *
-import Candidate, Employer, OfficeEmployee
 from pyRecruitment import *
+from util import *
+
+from DBManager import DBManagement
+
+import Candidate, Employer, OfficeEmployee
+
+dbman = DBManagement("test.db")
 
 type_dict = {
         "Candidate": Candidate,
@@ -10,8 +16,9 @@ type_dict = {
         }
 
 class Login(QWidget):
-    def __init__(self):
+    def __init__(self, mainwindow):
         super().__init__()
+        self.mainwindow = mainwindow
         self.usrname = QLineEdit()
         self.passwd = QLineEdit()
         self.passwd.setEchoMode(QLineEdit.Password)
@@ -47,15 +54,26 @@ class Login(QWidget):
         self.register = QPushButton("Register")
         self.layout.addWidget(self.register)
 
+
         self.setLayout(self.layout)
 
     def getType(self):
         return str(self.type.currentText())
 
+    def login_user(self):
+        username = self.usrname.text()
+        password = self.passwd.text()
+        _id = dbman.loginUser(username, password)
+        if _id:
+            return _id
+        else:
+            print("User doesn't exist")
+
+
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.w = Login()
+        self.w = Login(self)
         self.w.show()
         self.w.login_button.clicked.connect(self.switch_main)
         self.w.register.clicked.connect(self.switch_register)
@@ -67,8 +85,11 @@ class Window(QMainWindow):
         self.setCentralWidget(self.w)
 
     def switch_main(self):
-        self.w = Widget()
-        self.setCentralWidget(self.w)
+        _id = self.w.login_user()
+        if _id:
+            print(_id)
+            self.w = type_dict[self.w.getType()].Widget(_id)
+            self.setCentralWidget(self.w)
 
 if __name__ == "__main__":
     app = QApplication([])

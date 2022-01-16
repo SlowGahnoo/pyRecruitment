@@ -1,7 +1,10 @@
+from PyQt5 import QtCore
 from PyQt5.QtCore import QObject, pyqtSlot, QDate, QDate, QDateTime
 from PyQt5.QtWidgets import *
+from Cards import *
 
 from DBManager import *
+from util import *
 
 dbman = DBManagement("test.db")
 
@@ -177,3 +180,151 @@ class Register(QWidget):
         print(login)
         print(candidate)
 
+class RightPanel(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.send = QPushButton("Send")
+        self.clear = QPushButton("Clear")
+        self.quit = QPushButton("Quit")
+        self.details = QPushButton("Details")
+        self.send.setEnabled(False)
+
+        self.date = QDateTime.currentDateTime().toString("yyyy-MM-dd") 
+
+        self.salary = QLineEdit()
+        self.work_experience = QLineEdit()
+        self.telework = QCheckBox()
+
+        self.part_full = QComboBox()
+        self.part_full.addItems(["PART", "FULL"])
+
+        # Create Request
+        self.layout = QVBoxLayout()
+
+        self.layout.addWidget(QLabel("Salary"))
+        self.layout.addWidget(self.salary)
+        self.layout.addWidget(QLabel("Work Experience (Years)"))
+        self.layout.addWidget(self.work_experience)
+        self.layout.addWidget(QLabel("Work Type"))
+        self.layout.addWidget(self.part_full)
+
+        self.telework.setText("Telework")
+        self.layout.addWidget(self.telework)
+
+        self.layout.addWidget(self.details)
+        self.layout.addWidget(self.send)
+        self.layout.addStretch()
+        self.layout.addWidget(self.clear)
+        self.layout.addWidget(self.quit)
+
+        self.setLayout(self.layout)
+
+        # self.description.textChanged[str].connect(self.check_disable)
+        self.salary.textChanged[str].connect(self.check_disable)
+
+    def clicked_connect(self, _send, _quit, _clear):
+        self.send.clicked.connect(_send)
+        self.quit.clicked.connect(_quit)
+        self.clear.clicked.connect(_clear)
+
+    @pyqtSlot()
+    def check_disable(self):
+        if not is_float(self.salary.text()):
+            self.send.setEnabled(False)
+        else:
+            self.send.setEnabled(True)
+
+class Widget(QWidget):
+    def __init__(self, usr_id):
+        super().__init__()
+        self.usr_id = usr_id
+        self.items = 0
+
+        self.list = QListWidget()
+        self.list.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.list.customContextMenuRequested.connect(self.customContextMenuRequested)
+        self.list.mouseReleaseEvent = self.listContext
+        
+        self.right = RightPanel()
+        self.right.clicked_connect(self.add_element, self.quit_application, self.clear_table)
+        self.layout = QHBoxLayout(self)
+
+        self.left = QVBoxLayout()
+        usr = dbman.fetchCandidate(self.usr_id)
+        self.left.addWidget(QLabel(f"Requests - user: {usr.name} {usr.surname}"))
+        self.left.addWidget(self.list)
+        self.layout.addLayout(self.left)
+        self.layout.addWidget(self.right)
+        self.fill_list()
+
+        self.setLayout(self.layout)
+
+    def listContext(self, event):
+        if event.button() == QtCore.Qt.RightButton:
+            menu = QMenu(self)
+            edit = menu.addAction("Edit")
+            delete = menu.addAction("Delete")
+            details = menu.addAction("View details")
+            action = menu.exec_(self.mapToGlobal(event.pos()))
+            if action == delete:
+                ret = QMessageBox().question(None, '',"Are you sure?", QMessageBox.Yes | QMessageBox.No)
+                if ret == QMessageBox.Yes:
+                    self.list.takeItem(self.list.indexAt(event.pos()).row())
+
+    def fill_list(self, data = None):
+        requests = dbman.fetchRequest(self.usr_id)
+        for i, r in enumerate(requests):
+            a = QListWidgetItem()
+            card = RequestCard([
+                float(r.desired_wage),
+                r.job_type,
+                bool(r.telework),
+                r.application_date
+            ])
+            a.setSizeHint(card.sizeHint())
+            self.list.addItem(a)
+            self.list.setItemWidget(a, card)
+            self.items = i
+
+    def add_element(self):
+        a = QListWidgetItem()
+        print(self.usr_id)
+
+        card = RequestCard([
+            float(self.right.salary.text()),
+            self.right.part_full.currentText(),
+            self.right.telework.isChecked(),
+            self.right.date
+        ])
+
+        request = Request(
+            application_date = self.right.date,
+            desired_wage = self.right.salary.text(),
+            job_type = self.right.part_full.currentText(),
+            telework = int(self.right.telework.isChecked()),
+            work_experience = self.right.work_experience.text(),
+            id_candidate = self.usr_id
+        )
+
+        dbman.pushRequest(request)
+        dbman.commit()
+
+        a.setSizeHint(card.sizeHint())
+        self.list.addItem(a)
+
+        self.list.setItemWidget(a, card)
+        self.right.work_experience.setText("")
+        self.right.salary.setText("")
+
+        self.items += 1
+
+    @pyqtSlot()
+    def quit_application(self):
+        QApplication.quit()
+
+    @pyqtSlot()
+    def clear_table(self):
+        ret = QMessageBox().question(None, '',"Are you sure?", QMessageBox.Yes | QMessageBox.No)
+        if ret == QMessageBox.Yes:
+            self.list.clear()
+            self.items = 0
