@@ -1,5 +1,5 @@
 # pyRecruitment
-## A recruitment agency application written with Python+SQL
+## A recruitment agency application written in Python+SQL
 
 ### Dependencies
 PyQt5
